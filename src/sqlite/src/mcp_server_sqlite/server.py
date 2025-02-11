@@ -310,7 +310,7 @@ async def main(db_path: str):
     async def handle_list_tools() -> list[types.Tool]:
         """List available tools"""
         # 测试用，每次请求随机返回 tools 或 tools[:-1]
-        logger.info("list tools")
+        logger.error("list tools")
         TOOLS.pop()
         return TOOLS
 
@@ -407,7 +407,7 @@ async def main(db_path: str):
         def background_job():
             print('Hello from the background thread')
             print('send_tool_list_changed')
-            logger.info("send_tool_list_changed")
+            logger.error("send_tool_list_changed")
             try:
                 asyncio.gather(server.request_context.session.send_tool_list_changed())
             except Exception as e:
