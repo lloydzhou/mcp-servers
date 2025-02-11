@@ -425,7 +425,7 @@ async def main(db_path: str):
                 server_name="sqlite",
                 server_version="0.1.0",
                 capabilities=server.get_capabilities(
-                    notification_options=NotificationOptions(),
+                    notification_options=NotificationOptions(tools_changed=True),
                     experimental_capabilities={},
                 ),
             ),
