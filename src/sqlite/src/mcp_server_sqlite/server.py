@@ -101,6 +101,72 @@ The provided XML tags are for the assistants understanding. Implore to make all 
 Start your first message fully in character with something like "Oh, Hey there! I see you've chosen the topic {topic}. Let's get started! 🚀"
 """
 
+TOOLS = [
+    types.Tool(
+        name="read_query",
+        description="Execute a SELECT query on the SQLite database",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "SELECT SQL query to execute"},
+            },
+            "required": ["query"],
+        },
+    ),
+    types.Tool(
+        name="write_query",
+        description="Execute an INSERT, UPDATE, or DELETE query on the SQLite database",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "SQL query to execute"},
+            },
+            "required": ["query"],
+        },
+    ),
+    types.Tool(
+        name="create_table",
+        description="Create a new table in the SQLite database",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "CREATE TABLE SQL statement"},
+            },
+            "required": ["query"],
+        },
+    ),
+    types.Tool(
+        name="list_tables",
+        description="List all tables in the SQLite database",
+        inputSchema={
+            "type": "object",
+            "properties": {},
+        },
+    ),
+    types.Tool(
+        name="describe_table",
+        description="Get the schema information for a specific table",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "table_name": {"type": "string", "description": "Name of the table to describe"},
+            },
+            "required": ["table_name"],
+        },
+    ),
+    types.Tool(
+        name="append_insight",
+        description="Add a business insight to the memo",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "insight": {"type": "string", "description": "Business insight discovered from data analysis"},
+            },
+            "required": ["insight"],
+        },
+    ),
+]
+
 class SqliteDatabase:
     def __init__(self, db_path: str):
         self.db_path = str(Path(db_path).expanduser())
@@ -239,71 +305,9 @@ async def main(db_path: str):
     @server.list_tools()
     async def handle_list_tools() -> list[types.Tool]:
         """List available tools"""
-        return [
-            types.Tool(
-                name="read_query",
-                description="Execute a SELECT query on the SQLite database",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "query": {"type": "string", "description": "SELECT SQL query to execute"},
-                    },
-                    "required": ["query"],
-                },
-            ),
-            types.Tool(
-                name="write_query",
-                description="Execute an INSERT, UPDATE, or DELETE query on the SQLite database",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "query": {"type": "string", "description": "SQL query to execute"},
-                    },
-                    "required": ["query"],
-                },
-            ),
-            types.Tool(
-                name="create_table",
-                description="Create a new table in the SQLite database",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "query": {"type": "string", "description": "CREATE TABLE SQL statement"},
-                    },
-                    "required": ["query"],
-                },
-            ),
-            types.Tool(
-                name="list_tables",
-                description="List all tables in the SQLite database",
-                inputSchema={
-                    "type": "object",
-                    "properties": {},
-                },
-            ),
-            types.Tool(
-                name="describe_table",
-                description="Get the schema information for a specific table",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "table_name": {"type": "string", "description": "Name of the table to describe"},
-                    },
-                    "required": ["table_name"],
-                },
-            ),
-            types.Tool(
-                name="append_insight",
-                description="Add a business insight to the memo",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "insight": {"type": "string", "description": "Business insight discovered from data analysis"},
-                    },
-                    "required": ["insight"],
-                },
-            ),
-        ]
+        # 测试用，每次请求随机返回 tools 或 tools[:-1]
+        import time
+        return TOOLS[:-1] if time.time() % 2 == 0 else TOOLS
 
     @server.call_tool()
     async def handle_call_tool(
@@ -368,6 +372,10 @@ async def main(db_path: str):
 
     async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
         logger.info("Server running with stdio transport")
+        import schedule, asyncio
+        def job():
+            asyncio.gather(server.request_context.session.send_tool_list_changed())
+        schedule.every(10).seconds.do(job)
         await server.run(
             read_stream,
             write_stream,
