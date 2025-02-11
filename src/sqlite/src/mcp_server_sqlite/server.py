@@ -372,10 +372,46 @@ async def main(db_path: str):
 
     async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
         logger.info("Server running with stdio transport")
-        import schedule, asyncio
-        def job():
-            asyncio.gather(server.request_context.session.send_tool_list_changed())
-        schedule.every(10).seconds.do(job)
+        import schedule, asyncio, time, threading
+
+        def run_continuously(interval=1):
+            """Continuously run, while executing pending jobs at each
+            elapsed time interval.
+            @return cease_continuous_run: threading. Event which can
+            be set to cease continuous run. Please note that it is
+            *intended behavior that run_continuously() does not run
+            missed jobs*. For example, if you've registered a job that
+            should run every minute and you set a continuous run
+            interval of one hour then your job won't be run 60 times
+            at each interval but only once.
+            """
+            cease_continuous_run = threading.Event()
+
+            class ScheduleThread(threading.Thread):
+                @classmethod
+                def run(cls):
+                    while not cease_continuous_run.is_set():
+                        schedule.run_pending()
+                        time.sleep(interval)
+
+            continuous_thread = ScheduleThread()
+            continuous_thread.start()
+            return cease_continuous_run
+
+
+        def background_job():
+            print('Hello from the background thread')
+            print('send_tool_list_changed')
+            try:
+                asyncio.gather(server.request_context.session.send_tool_list_changed())
+            except Exception as e:
+                logging.error(e)
+
+        schedule.every(5).seconds.do(background_job)
+
+        # Start the background thread
+        stop_run_continuously = run_continuously()
+
         await server.run(
             read_stream,
             write_stream,
