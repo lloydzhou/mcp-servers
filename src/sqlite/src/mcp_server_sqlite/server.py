@@ -19,6 +19,10 @@ if sys.platform == "win32" and os.environ.get('PYTHONIOENCODING') is None:
 
 logger = logging.getLogger('mcp_sqlite_server')
 logger.info("Starting MCP SQLite Server")
+# create file handler which logs even debug messages
+fh = logging.FileHandler('/tmp/mcp_sqlite_server.log')
+fh.setLevel(logging.DEBUG)
+logger.addHandler(fh)
 
 PROMPT_TEMPLATE = """
 The assistants goal is to walkthrough an informative demo of MCP. To demonstrate the Model Context Protocol (MCP) we will leverage this example server to interact with an SQLite database.
@@ -306,8 +310,9 @@ async def main(db_path: str):
     async def handle_list_tools() -> list[types.Tool]:
         """List available tools"""
         # 测试用，每次请求随机返回 tools 或 tools[:-1]
-        import time
-        return TOOLS[:-1] if time.time() % 2 == 0 else TOOLS
+        logger.info("list tools")
+        TOOLS.pop()
+        return TOOLS
 
     @server.call_tool()
     async def handle_call_tool(
@@ -402,6 +407,7 @@ async def main(db_path: str):
         def background_job():
             print('Hello from the background thread')
             print('send_tool_list_changed')
+            logger.info("send_tool_list_changed")
             try:
                 asyncio.gather(server.request_context.session.send_tool_list_changed())
             except Exception as e:
